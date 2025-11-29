@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>پشتیبانی - My Mate</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;900&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Vazirmatn', sans-serif;
+      background-color: #fff8dc;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 1rem;
+    }
+    #chatContainer {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      max-width: 600px;
+      height: 90vh;
+      background: #fff9e6;
+      border-radius: 16px;
+      box-shadow: 0 12px 28px rgba(250,215,97,0.4);
+      overflow: hidden;
+    }
+    #messages {
+      flex-grow: 1;
+      overflow-y: auto;
+      padding: 1.5rem;
+      background: #fff3cd;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      scrollbar-width: thin;
+      scrollbar-color: #fad761 #fff3cd;
+    }
+    #messages::-webkit-scrollbar {
+      width: 10px;
+    }
+    #messages::-webkit-scrollbar-track {
+      background: #fff3cd;
+      border-radius: 10px;
+    }
+    #messages::-webkit-scrollbar-thumb {
+      background-color: #fad761;
+      border-radius: 10px;
+      border: 3px solid #fff3cd;
+    }
+    .msg-user {
+      align-self: flex-start;
+      background: #fff9e6;
+      color: #5a4d0e;
+      padding: 12px 18px;
+      border-radius: 20px 20px 20px 4px;
+      max-width: 75%;
+      box-shadow: 0 2px 8px rgba(250,215,97,0.35);
+      font-weight: 600;
+      line-height: 1.3;
+    }
+    .msg-admin {
+      align-self: flex-end;
+      background: #fad761;
+      color: black;
+      padding: 12px 18px;
+      border-radius: 20px 20px 4px 20px;
+      max-width: 75%;
+      box-shadow: 0 2px 8px rgba(250,215,97,0.7);
+      font-weight: 700;
+      line-height: 1.3;
+    }
+    #inputBar {
+      display: flex;
+      padding: 1rem 1.5rem;
+      background: #fff9e6;
+      border-top: 3px solid #fad761;
+      gap: 12px;
+    }
+    #msgInput {
+      flex-grow: 1;
+      padding: 0.75rem 1rem;
+      border: 2px solid #fad761;
+      border-radius: 24px;
+      font-size: 1rem;
+      outline-offset: 2px;
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+    #msgInput:focus {
+      border-color: #e0b92a;
+      box-shadow: 0 0 10px rgba(250,215,97,0.7);
+    }
+    #inputBar button {
+      background: #fad761;
+      border: none;
+      border-radius: 24px;
+      padding: 0 2rem;
+      color: black;
+      font-weight: 700;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    #inputBar button:hover:not(:disabled) {
+      background: #e0b92a;
+    }
+    #inputBar button:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+    @media (max-width: 640px) {
+      #chatContainer {
+        height: 100vh;
+        border-radius: 0;
+        max-width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="chatContainer">
+    <div id="messages">
+      <p class="text-center text-yellow-900">در حال بارگذاری...</p>
+    </div>
+    <form id="inputBar" autocomplete="off">
+      <input id="msgInput" type="text" placeholder="پیام خود را بنویسید..." required />
+      <button type="submit" disabled>ارسال</button>
+    </form>
+  </div>
+
+  <script src="auth.js"></script>
+  <script>
+    const messagesEl = document.getElementById("messages");
+    const form = document.getElementById("inputBar");
+    const input = document.getElementById("msgInput");
+    const sendBtn = form.querySelector("button");
+
+    function scrollToBottom() {
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function toggleSendButton() {
+      sendBtn.disabled = input.value.trim().length === 0;
+    }
+
+    input.addEventListener("input", toggleSendButton);
+
+    async function load() {
+      try {
+        const res = await fetch("/api/messages", {
+          credentials: "include",
+        });
+        const arr = await res.json();
+        messagesEl.innerHTML = "";
+        if (!arr.length) {
+          messagesEl.innerHTML = `<p class="text-center text-yellow-900">هیچ پیامی وجود ندارد.</p>`;
+          return;
+        }
+        for (const m of arr) {
+          const userMsg = document.createElement("div");
+          userMsg.className = "msg-user";
+          userMsg.textContent = m.userMessage;
+          messagesEl.appendChild(userMsg);
+          if (m.adminReply) {
+            const adminMsg = document.createElement("div");
+            adminMsg.className = "msg-admin";
+            adminMsg.textContent = m.adminReply;
+            messagesEl.appendChild(adminMsg);
+          }
+        }
+        scrollToBottom();
+      } catch {
+        messagesEl.innerHTML = `<p class="text-center text-red-600">خطا در بارگذاری پیام‌ها.</p>`;
+      }
+    }
+
+    form.addEventListener("submit", async e => {
+      e.preventDefault();
+      const txt = input.value.trim();
+      if (!txt) return;
+      try {
+        sendBtn.disabled = true;
+        await fetch("/api/messages", {
+          method: "POST",
+          headers: { "Content-Type":"application/json" },
+          credentials: "include",
+          body: JSON.stringify({ userMessage: txt })
+        });
+        input.value = "";
+        toggleSendButton();
+        await load();
+      } catch {
+        alert("خطا در ارسال پیام.");
+      } finally {
+        sendBtn.disabled = false;
+      }
+    });
+
+    // Check if user is logged in, redirect if not, otherwise load messages
+    Auth.checkAuth().then(user => {
+      if (!user) {
+        window.location.href = "/login.html";
+        return;
+      }
+      // User is logged in, load messages
+      load();
+      toggleSendButton();
+    });
+  </script>
+
+</body>
+</html>
