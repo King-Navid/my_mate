@@ -1,0 +1,4 @@
+1. switch the my mate word with those buttons
+2. add a feature
+3. a beautiful font
+4. fix api key
